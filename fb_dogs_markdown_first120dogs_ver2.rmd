@@ -1,0 +1,148 @@
+---
+title: "False Belief Task 2020"
+author: ""
+date: "July 22, 2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+rm(list=ls())
+
+library(lme4)
+library(ggthemes)
+library(psych)
+library(summarytools)
+library(cowplot)
+library(car)
+library(tidyverse)
+library(ggsignif)
+library(ggplot2)
+library(dplyr)
+#library(sjPlot)
+source("functions/diagnostic_fcns.r")
+source("functions/glmm_stability.r")
+source("functions/boot_glmm.r")
+
+
+#install.packages("")
+
+#load(file ="mm1_mult_poss.RData")
+
+
+
+```
+
+```{r loading data, include = FALSE}
+fb_data <- read.csv(file="data/Dataset_S1.csv")%>%
+  mutate(fci_group = as.factor(fci_group))
+```
+### Plotting latencies: Figure S3
+```{r}
+
+plot.data.latency <- fb_data %>%
+  mutate(condition=recode(condition, "FalseBelief"="False Belief", "TrueBelief"="True Belief"))#renaming of factor levels
+
+p.latency<-ggplot(
+  data=plot.data.latency, aes(x=condition, y=log(latency))) +
+  geom_boxplot(alpha=0.5)+
+  theme_classic()+
+  labs(x="Group",y="Latency (log transformed)")
+  
+p.latency
+#saving the plot 
+ggsave("Fig_S3_exp1_latency_120dogs.pdf",
+  plot = last_plot(),
+  device = NULL,
+  path = "~/R/data_code_Lonardo_et_al/graphs",
+  scale = 0.7,
+  width = 7,
+  height = 5,
+  #units = c("in", "cm", "mm"),
+  dpi = 320,
+  limitsize = TRUE
+)
+```
+### GLMM
+``` {r mixed modeling, error=TRUE}
+
+# centering variables for modeling
+
+model.data <- fb_data %>% 
+  mutate(z.age = as.numeric(scale(age, scale = T, center = T)),
+         sex.c = as.numeric(scale(as.numeric(as.factor(sex)), scale=F, center=T)),
+         condition.c = as.numeric(scale(as.numeric(as.factor(condition)), scale=F, center=T)),
+         first_baited_box.c = as.numeric(scale(as.numeric(as.factor(first_baited_box)), scale=F, center=T)))
+
+as.data.frame(model.data)
+#view(dfSummary(model.data))
+```
+#### check for colinearity in the previous model.
+
+```{R echo=FALSE, error=FALSE, warning=FALSE}
+
+col.full <- lm(correct ~ condition + z.age + sex + first_baited_box, data = model.data)
+vif(col.full)
+#no problem
+```
+### GLMM 01:Model with breed as random intercept. Table S1
+
+```{r eval=FALSE, echo=FALSE}
+xx.fe.re=fe.re.tab(fe.model="correct ~ condition + age + sex + first_baited_box",
+                   re="(1|breed)", data=fb_data)
+xx.fe.re$summary
+```
+
+``` {r mixed modeling, error=TRUE}
+
+## code to run the model
+full.choice.breed <- glmer(correct ~ condition + z.age + sex + first_baited_box+
+             (1+ sex.c + condition.c + first_baited_box.c + z.age|| breed), 
+             data = model.data, family = binomial, 
+             control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5))
+)
+```
+
+####Model output
+  + Coefficients
+```{r}
+round(summary(full.choice.breed)$coefficients, 3)
+```
+  + Individual predictors: likelihood ratio tests  
+Drop1: P values for the individual effects were based on likelihood ratio tests comparing the full with respective reduced models (Barr et al., 2013; R function drop1 with argument 'test' set to "Chisq"). 
+
+```{r}
+drop1.full=drop1(full.choice.breed, test="Chisq")
+round(drop1.full,3)
+```
+```{r}
+summary(full.choice.breed)$varcor
+```
+#confidence intervals
+
+```{r}
+boot.res=boot.glmm.pred(model.res=full.choice.breed, excl.warnings=T,
+	nboots=1000, para=T)
+res<-round(boot.res$ci.estimates, 3)
+res
+```
+
+
+```{r eval=FALSE, include=FALSE}
+# Model stability
+# One subject at a time excluded to assess the impact of outliers. 
+
+m.stab.b <- glmm.model.stab(model.res = full.choice.breed, use = c("breed"))
+m.stab.b$detailed$warnings
+xx <- as.data.frame(round(m.stab.b$summary[, -1], 3))
+xx
+png("graphs/exp1_choice_stability_plot.png")
+m.stab.plot(round(m.stab.b$summary[, -1], 3))
+dev.off()
+
+```
+
+

@@ -1,0 +1,76 @@
+﻿#plot Exp. 1 choices of FCI groups (N=144)
+xdata=read.csv(file="Dataset_S4_exp1_144dogs.csv", header=T)
+
+library(plyr)
+xdata$condition<-revalue(xdata$condition, c("FalseBelief"="False Belief", "TrueBelief"="True Belief"))
+xdata$choice<-revalue(xdata$choice, c("baited"="B", "empty"="A"))
+par(mfrow=c(4, 2), mar=c(3, 7, 2.5, 3), mgp=c(2, 0.5, 0), tcl=-0.15, las=1)
+
+par(mfrow=c(3, 3), mar=c(3, 5, 2.5, 3), mgp=c(2, 0.5, 0), tcl=-0.15, las=1)
+
+#fci group 1
+choice1<-xdata$choice[xdata$fci_group=="1"] 
+condition1<-xdata$condition[xdata$fci_group=="1"] 
+plot(condition1,choice1, 
+	xlab="Group", ylab="Choice", main="FCI group 1 (N=40)")
+
+choice2<-xdata$choice[xdata$fci_group=="2"] 
+condition2<-xdata$condition[xdata$fci_group=="2"] 
+plot(condition2,choice2, 
+	xlab="Group", ylab="Choice", main="FCI group 2 (N=22)")
+table(choice2,condition2)
+
+choiceterr<-xdata$choice[xdata$fci_group=="3"] 
+conditionterr<-xdata$condition[xdata$fci_group=="3"] 
+plot(conditionterr,choiceterr, 
+	xlab="Group", ylab="Choice", main="FCI group 3 (N=10)")
+
+
+choice5<-xdata$choice[xdata$fci_group=="5"] 
+condition5<-xdata$condition[xdata$fci_group=="5"] 
+plot(condition5,choice5, 
+	xlab="Group", ylab="Choice", main="FCI group 5 (N=10)")
+
+choice6<-xdata$choice[xdata$fci_group=="6"] 
+condition6<-xdata$condition[xdata$fci_group=="6"] 
+plot(condition6,choice6, 
+	xlab="Group", ylab="Choice", main="FCI group 6 (N=13)")
+table(choice6,condition6)
+
+choice7<-xdata$choice[xdata$fci_group=="7"] 
+condition7<-xdata$condition[xdata$fci_group=="7"] 
+plot(condition7,choice7, 
+	xlab="Group", ylab="Choice", main="FCI group 7 (N=18)")
+
+choice8<-xdata$choice[xdata$fci_group=="8"] 
+condition8<-xdata$condition[xdata$fci_group=="8"] 
+plot(condition8,choice8, 
+	xlab="Group", ylab="Choice", main="FCI group 8 (N=18)")
+table(choice8,condition8)
+
+choicegrey<-xdata$choice[xdata$fci_group=="10"] 
+conditiongrey<-xdata$condition[xdata$fci_group=="10"] 
+plot(conditiongrey,choicegrey, 
+	xlab="Group", ylab="Choice", main="FCI group 10 (N=13)")
+
+
+#plotting BC choices
+choicebc<-xdata$choice[xdata$breed=="border_collie"]
+conditionbc<-xdata$condition[xdata$breed=="border_collie"]
+plot(conditionbc, choicebc,
+	xlab="Group", ylab="Choice", main="Border collies (N=11)")
+
+
+
+
+#plot Exp. 1 anticipatory looking - Figure S5 (N=52)
+
+xdata=read.csv(file="data/Dataset_S5_exp1_ant_look.csv", header=T)
+str(xdata)
+library(plyr)
+xdata$condition<-revalue(xdata$condition, c("FalseBelief"="False Belief (17 dogs)", "TrueBelief"="True Belief (35 dogs)"))
+xdata$ant_looking<-revalue(xdata$ant_looking, c("baited"="B", "empty"="A"))
+plot(xdata$condition,xdata$ant_looking,
+ xlab="Group",ylab="Container")
+
+

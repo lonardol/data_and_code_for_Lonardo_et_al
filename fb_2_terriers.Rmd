@@ -1,0 +1,264 @@
+---
+title: "plots and analysis fb2 terriers"
+author: "Lucrezia Lonardo"
+date: "03/11/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+
+library(lme4)
+library(ggthemes)
+library(psych)
+library(summarytools)
+library(cowplot)
+library(car)
+library(tidyverse)
+library(readr)
+library(ggsignif)
+source("functions/diagnostic_fcns.r")
+source("functions/glmm_stability.r")
+source("functions/boot_glmm.r")
+
+```
+
+##loading data
+```{r}
+terrier_data <-read.csv("data/Dataset_S7_exp3_terr.csv")%>%rename("first_trial_fam"="first_trial_fam..1.yes..followed.communicator.")%>%
+  mutate(fci_group = as.factor(fci_group))%>%
+  mutate(breed= as.factor(breed))%>%
+  mutate(condition=recode(condition, "False_Belief"="False Belief", "True_Belief"="True Belief"))
+```
+
+## Plotting the choices
+
+```{r}
+plot.data <- terrier_data %>%
+  group_by(condition)%>%
+  summarise(mean.correct=mean(correct), sd.correct=sd(correct), sum.correct=sum(correct), median.correct=median(correct), n.correct=length(correct), se.correct=sd(correct)/sqrt(length(correct)))
+plot.data
+
+p.choice<-ggplot(
+  data=plot.data, aes(x=condition, y=mean.correct)) +
+  geom_bar(stat="identity", alpha=0.5)+
+  geom_errorbar(aes(ymin=mean.correct-se.correct, ymax=mean.correct+se.correct), width=.2) +
+  ylim(0,0.8)+
+  geom_signif(comparisons=list(c("False Belief", "True Belief")), annotations="*",
+              y_position = 0.75, tip_length = 0.04, vjust=0.4) +
+  theme_classic()+
+  labs(x="Group",y="Proportion of bucket A choices")+
+  ggtitle("Terriers (N=40)")
+ p.choice
+ 
+#saving the plot with ggsave
+ggsave("graphs/bucket_A_choices_terriers.png",
+  plot = last_plot(),
+  device = NULL,
+  #path = "C:/Users/lonardol/Desktop/False Belief experiment/FB_2_follow_up/Graphs/Terriers",
+  scale = 0.8,
+  width = 7,
+  height = 6,
+  #units = c("in", "cm", "mm"),
+  dpi = 320,
+  limitsize = TRUE
+)
+#(A choice= 0.20 fb; 0.5 tb)
+```
+#analysing the effect of group on condition: generalised linear model. Table S8
+
+# centering variables for modeling
+
+```{r}
+model.data <- terrier_data %>% 
+  mutate(z.age = as.numeric(scale(age, scale = T, center = T)),
+         sex.c = as.numeric(scale(as.numeric(sex), scale=F, center=T)),
+         condition.c = as.numeric(scale(as.numeric(condition), scale=F, center=T)),
+         first_baited_box.c = as.numeric(scale(as.numeric(first_baited_box), scale=F, center=T)),
+         breed2=as.factor(as.numeric(breed)))
+
+model.data<-as.data.frame(model.data)
+
+xx.fe.re=fe.re.tab(fe.model="correct ~ condition + age + sex + first_baited_box",
+                   re="(1|breed)", data=model.data)
+xx.fe.re$summary
+
+```
+```{r}
+#code to run the model
+full.choice <- glm(correct ~ condition + z.age + sex + first_baited_box, 
+             data = model.data, family = binomial, 
+)
+```
+
+#coefficients (estimate and std. error )
+```{r}
+round(summary(full.choice)$coefficients, 3)
+```
+
+#chisq. (LRT) and p. (A choice= 0.50 fb; 0.20 tb)
+```{r}
+#chisq. (LRT) and p. 
+drop1.full=drop1(full.choice, test="Chisq")
+round(drop1.full,3)
+```
+
+#### check for collinearity in the previous model.
+
+```{R echo=FALSE, error=FALSE, warning=FALSE}
+
+col.full <- lm(correct ~ condition + z.age + sex + first_baited_box, data = model.data)
+vif(col.full)
+#no problem
+```
+```{r}
+#confidence intervals
+
+cbind(orig=round(coefficients(full.choice),2),
+      round(confint(full.choice),2))
+```
+#plot with CI
+```{r}
+full.choice.terrier.ci <- glm(correct ~ condition + z.age + sex.c + first_baited_box.c,
+             data = model.data, family = binomial
+)
+#adding fitted values
+fv=rep(NA, times=2)
+fv[1]=coef(full.choice.terrier.ci  )["(Intercept)"]
+fv[2]=sum(coef(full.choice.terrier.ci )[c("(Intercept)", "conditionTrue Belief")])
+
+fv=exp(fv)/(1+exp(fv))
+
+to.plot <- model.data %>%
+  group_by(condition)%>%
+  summarise(mean.correct=mean(correct))%>%
+  ungroup()
+
+to.plot$z.age=0
+to.plot$sex.c=0
+to.plot$first_baited_box.c=0
+
+ci.plot=predict.glm(object=full.choice.terrier.ci, newdata=to.plot,type="link", se.fit=T)
+
+
+ci.plot=data.frame(
+lwr=ci.plot$fit-ci.plot$se.fit*
+abs(qt(p=0.025, df=full.choice.terrier.ci $df.residual)),
+upr=ci.plot$fit+ci.plot$se.fit*
+abs(qt(p=0.025, df=full.choice.terrier.ci $df.residual))
+)
+ci.plot=exp(ci.plot)/(1+exp(ci.plot))
+
+ci.data=(cbind(to.plot, fv, ci.plot))
+
+p.choicet=ggplot(data=ci.data, aes(x=condition, y=mean.correct))+
+  geom_bar(stat="identity", alpha=0.5)+
+  geom_errorbar(aes(ymin=lwr, ymax=upr), width=.2) +
+  geom_point(aes(x=condition, y=fv)) +
+  ylim(0,0.8)+
+  geom_signif(comparisons=list(c("False Belief", "True Belief")), annotations="*",
+              y_position = 0.80, tip_length = 0.04, vjust=0.4) +
+  theme_classic()+
+  labs(x="Group",y="Proportion of bucket A choices")+
+  ggtitle("Terriers (N=40)")
+p.choicet
+
+```
+```{r}
+#saving the plot
+ggsave(
+  "./graphs/bucket_A_choices_Terrier_CI.png",
+  plot = last_plot(),
+  device = NULL,
+ # path = "C:/Users/lonardol/Desktop/False Belief experiment/FB_2_follow_up/Graphs/Border Collies",
+  scale = 0.8,
+  width = 7,
+  height = 6,
+  #units = c("in", "cm", "mm"),
+  dpi = 320,
+  limitsize = TRUE
+)
+```
+
+#unique plot for BC and Terrier choice
+```{r}
+
+border_data <- read.csv(file="data/Dataset_S6_exp3_bc.csv")%>%
+  mutate(correct=as.numeric(ifelse(choice=="baited",0,ifelse(choice=="empty",1,""))))%>%
+  mutate(fci_group = as.factor(fci_group))%>%
+  mutate(condition=recode(condition, "False_Belief"="False Belief", "True_Belief"="True Belief"))
+
+plot.datab <- border_data %>%
+  group_by(condition)%>%
+  summarise(mean.correct=mean(correct), sd.correct=sd(correct), sum.correct=sum(correct), median.correct=median(correct), n.correct=length(correct), se.correct=sd(correct)/sqrt(length(correct)))
+plot.datab
+
+model.datab <- border_data %>% 
+  mutate(z.age = as.numeric(scale(age, scale = T, center = T)),
+         sex.c = as.numeric(scale(as.numeric(sex), scale=F, center=T)),
+         condition.c = as.numeric(scale(as.numeric(condition), scale=F, center=T)),
+         first_baited_box.c = as.numeric(scale(as.numeric(first_baited_box), scale=F, center=T)))
+         
+as.data.frame(model.datab)
+
+full.choice.border.ci <- glm(correct ~ condition + z.age + sex.c + first_baited_box.c,
+             data = model.datab, family = binomial
+)
+
+#adding fitted values and CI
+fvb=rep(NA, times=2)
+fvb[1]=coef(full.choice.border.ci  )["(Intercept)"]
+fvb[2]=sum(coef(full.choice.border.ci )[c("(Intercept)", "conditionTrue Belief")])
+
+fvb=exp(fvb)/(1+exp(fvb))
+
+to.plotb <- model.datab %>%
+  group_by(condition)%>%
+  summarise(mean.correct=mean(correct))%>%
+  ungroup()
+
+to.plotb$z.age=0
+to.plotb$sex.c=0
+to.plotb$first_baited_box.c=0
+
+ci.plotb=predict.glm(object=full.choice.border.ci, newdata=to.plotb,type="link", se.fit=T)
+
+ci.plotb=data.frame(
+lwrb=ci.plotb$fit-ci.plotb$se.fit*
+abs(qt(p=0.025, df=full.choice.border.ci $df.residual)),
+uprb=ci.plotb$fit+ci.plotb$se.fit*
+abs(qt(p=0.025, df=full.choice.border.ci $df.residual))
+)
+ci.plotb=exp(ci.plotb)/(1+exp(ci.plotb))
+ci.plotb
+
+ci.datab=(cbind(to.plotb, fvb, ci.plotb))
+#bc plot
+p.choiceb<-ggplot(
+  data=ci.datab, aes(x=condition, y=mean.correct)) +
+  geom_bar(stat="identity", alpha=0.5)+
+  geom_errorbar(aes(ymin=lwrb, ymax=uprb), width=.2) +
+  geom_point(aes(x=condition, y=fvb)) +
+  ylim(0,0.8)+
+  theme_classic()+
+  labs(x="Group",y="Proportion of bucket A choices")+
+  ggtitle("Border collies (N=40)")
+p.choiceb
+
+ 
+ combined_plots<-plot_grid(p.choiceb, p.choicet, nrow=1)
+combined_plots
+ #saving the plot 
+ggsave("Fig_3_exp3_terriers_and_bc_CI.pdf",
+  plot = last_plot(),
+  device = NULL,
+  path = "~/R/data_code_Lonardo_et_al/graphs",
+  scale = 0.7,
+  width = 11,
+  height = 5,
+  #units = c("in", "cm", "mm"),
+  dpi = 320,
+  limitsize = TRUE
+)
+
+```

@@ -1,0 +1,88 @@
+---
+title: "Terr_BC_breed differences_exp.3"
+author: "Lucrezia Lonardo"
+date: "19/02/2021"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+
+library(lme4)
+library(ggthemes)
+library(psych)
+library(summarytools)
+library(cowplot)
+library(car)
+library(tidyverse)
+library(glmmTMB)
+#library(sjPlot)
+source("functions/diagnostic_fcns.r")
+source("functions/glmm_stability.r")
+source("functions/boot_glmm.r")
+
+```
+# import data
+```{r cars}
+fb_data <- read.csv(file="data/Dataset_S3.csv")%>%
+  mutate(correct=as.numeric(ifelse(choice=="baited",0,ifelse(choice=="empty",1,""))))%>%
+  mutate(first_baited_box=as.factor(ifelse(first_baited_box=="blue"|first_baited_box=="black", "left", ifelse(first_baited_box=="brown"|first_baited_box=="white", "right",""))))%>%
+  mutate(fci_group = as.factor(fci_group))%>%
+ mutate(breed= as.factor(breed))%>%
+  rename("first_trial_fam"="first_trial_fam..1.yes..followed.communicator.")%>%
+  mutate(condition=recode(condition, "FalseBelief"="False_Belief", "TrueBelief"="True_Belief"))
+summary(fb_data)
+```
+
+#centering variables for modeling
+```{r pressure, echo=FALSE}
+model.data <- fb_data %>% 
+  mutate(z.age = as.numeric(scale(age, scale = T, center = T)),
+         sex.c = as.numeric(scale(as.numeric(sex), scale=F, center=T)),
+         condition.c = as.numeric(scale(as.numeric(condition), scale=F, center=T)),
+         first_baited_box.c = as.numeric(scale(as.numeric(first_baited_box), scale=F, center=T)),
+         breed2=as.factor(as.numeric(breed)))
+
+model.data<-as.data.frame(model.data)
+
+xx.fe.re=fe.re.tab(fe.model="correct ~ condition*fci_group + age + sex + first_baited_box",
+                   re="(1|breed)", data=model.data)
+xx.fe.re$summary
+```
+
+#fitting a full and a reduced model, lacking only the interaction
+```{r}
+full.choice.breed<- glm(correct ~ condition*fci_group + z.age + sex + first_baited_box,
+              data = model.data, family = binomial
+)
+
+null.choice.breed<-glm(correct ~ fci_group+ z.age + sex + first_baited_box,
+              data = model.data, family = binomial
+)
+
+```
+####Model output (Table S6)
+  + Coefficients
+```{r}
+round(summary(full.choice.breed)$coefficients, 3)
+```
+#Chisq. (LRT) and p
+```{r}
+drop1.full=drop1(full.choice.breed, test="Chisq")
+round(drop1.full,3)
+```
+# compare full and null model
+```{r}
+
+round(as.data.frame(anova(null.choice.breed, full.choice.breed, test="Chisq")), 3)
+
+```
+
+```{r}
+#confidence intervals
+cbind(orig=round(coefficients(full.choice.breed),2),
+      round(confint(full.choice.breed),2))
+
+```
+
+

@@ -1,0 +1,121 @@
+---
+title: "False Belief Task 2020"
+author: ""
+date: "July 22, 2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+rm(list=ls())
+
+library(lme4)
+library(ggthemes)
+library(psych)
+library(summarytools)
+library(cowplot)
+library(car)
+library(tidyverse)
+library(glmmTMB)
+#library(sjPlot)
+source("functions/diagnostic_fcns.r")
+source("functions/glmm_stability.r")
+source("functions/boot_glmm.r")
+
+
+#install.packages("")
+
+#load(file ="mm1_mult_poss.RData")
+
+
+
+```
+#import data
+```{r loading data, include = FALSE}
+fb_data <- read.csv(file="data/Dataset_S1.csv")
+```
+# LMM (function lmer)with breed as a random intercept: effect of condition on latency (log transformed). Table S2
+
+
+#centering and scaling variables
+```{r}
+xx.fe.re=fe.re.tab(fe.model="latency ~ condition + age + sex + first_baited_box",
+                   re="(1|breed)", data=fb_data)				   
+model.data=xx.fe.re$data
+str(model.data)
+
+#centering the dummy variable for sex, condition and first baited box
+model.data <- fb_data %>% 
+  mutate(z.age = as.numeric(scale(age, scale = T, center = T)),
+         sex.c = as.numeric(scale(as.numeric(sex), scale=F, center=T)),
+         condition.c = as.numeric(scale(as.numeric(condition), scale=F, center=T)),
+         first_baited_box.c = as.numeric(scale(as.numeric(first_baited_box), scale=F, center=T)))
+#log transform latency
+model.data$log.latency<-log(model.data$latency)
+```
+#running the model
+```{r}
+full.latency.breed <- lmer(log.latency ~ condition + z.age + sex + first_baited_box+
+             (1+ sex.c + condition.c + first_baited_box.c + z.age || breed), 
+             data = model.data)
+```
+#estimate; std. error; z-value
+```{r}
+round(summary(full.latency.breed)$coefficients, 3)
+```
+#p-values. + Individual predictors: likelihood ratio tests  
+Drop1: P values for the individual effects were based on likelihood ratio tests comparing the full with respective reduced models (Barr et al., 2013; R function drop1 with argument 'test' set to "Chisq"). 
+```{r}
+drop1.full=drop1(full.latency.breed, test="Chisq")
+round(drop1.full,3)
+```
+#confidence intervals
+```{r}
+boot.res=boot.glmm.pred(model.res=full.latency.breed, excl.warnings=T,
+	nboots=1000, para=T)
+round(boot.res$ci.estimates, 3) 
+```
+#random effects (breed)
+```{r}
+summary(full.latency.breed)$varcor # the contribution of breed ( intcpt std. dev. 0.34022 )is larger than that of condition (estimate: 0.019 )
+```
+#check for collinearity (it can only be assessed for standard linear models) 
+```{r}
+col.full.latency.breed <- lm(latency ~ condition + z.age + sex + first_baited_box, data = model.data)
+vif(col.full.latency.breed) #they are all 1, no problem
+```
+#check whether the residuals are normally distributed and homogeneous
+```{r}
+#diagn.pl<-
+diagnostics.plot(full.latency.breed) 
+```
+# check whether BLUPs (Best Linear Unbiased Predictors: estimated deviations of intercepts and slopes from the respective common average, per level of the random effects) are normally distributed
+```{r}
+ranef.diagn.plot(full.latency.breed)
+```
+#model stability
+```{r}
+m.stab=glmm.model.stab(model.res=full.latency.breed, contr=NULL, para=T, data=NULL)
+
+names(m.stab)
+table(m.stab$detailed$warnings) # all models converged (36 breeds)
+#summary reveals min and max of the estimates obtained after case-wise deletion of levels of random effects, 
+#together with the original estimates
+
+round(m.stab$summary[,-1],3)
+# the effect of condition is quite stable when excluding one breed at a time: 
+#conditionTrueBelief  orig: 0.019 min: -0.037  max: 0.073
+
+m.stab.plot(m.stab$summary[, -1])
+```
+
+
+
+
+
+

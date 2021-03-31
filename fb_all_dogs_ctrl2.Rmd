@@ -1,0 +1,80 @@
+---
+title: "all_dogs_Ctrl"
+author: "Lucrezia Lonardo"
+date: "15/11/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+rm(list=ls())
+
+library(lme4)
+library(ggthemes)
+library(psych)
+library(summarytools)
+library(cowplot)
+library(car)
+library(tidyverse)
+library(readr)
+library(ggsignif)
+library(multcomp)
+source("functions/diagnostic_fcns.r")
+source("functions/glmm_stability.r")
+source("functions/boot_glmm.r")
+```
+import data
+```{r include=FALSE}
+ctrl_data<- read.csv("data/Dataset_S2.csv")%>%
+  mutate(condition=recode(condition, "False_Belief"="False Belief", "True_Belief"="True Belief","True_Belief_Control"="True Belief Control"))
+```
+## GLMM with breed as random intercept investigating the effect of condition on choice. Table S5
+
+```{r}
+xx.fe.re=fe.re.tab(fe.model="correct ~ condition + age + sex + first_baited_box",
+                   re="(1|breed)", data=ctrl_data)
+xx.fe.re$summary
+```
+
+#### fitting the model with "True Belief Control" as reference category for condition
+``` {r error=TRUE}
+# centering variables for modeling
+
+model.data2 <- ctrl_data %>% 
+  mutate(condition=fct_relevel(condition, ref="True_Belief_Control"),
+         z.age = as.numeric(scale(age, scale = T, center = T)),
+         sex.c = as.numeric(scale(as.numeric(as.factor(sex)), scale=F, center=T)),
+         condition.c = as.numeric(scale(as.numeric(as.factor(condition)), scale=F, center=T)),
+         first_baited_box.c = as.numeric(scale(as.numeric(as.factor(first_baited_box)), scale=F, center=T)))
+
+as.data.frame(model.data2)
+
+## code to run the model
+full.choice.breed2 <- glmer(correct ~ condition + z.age + sex + first_baited_box+
+             (1+ sex.c + condition.c + first_baited_box.c + z.age|| breed), 
+             data = model.data2, family = binomial, 
+             control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5))
+)
+```
+####Model output with relevelled condition variable
+  + Coefficients
+```{r}
+round(summary(full.choice.breed2)$coefficients, 3)
+```
+#Chisq. (LRT) and p
+```{r}
+drop1.full=drop1(full.choice.breed2, test="Chisq")
+round(drop1.full,3)
+```
+```{r}
+summary(full.choice.breed2)$varcor
+summary(full.choice.breed2)
+```
+```{r}
+#confidence intervals
+boot.res=boot.glmm.pred(model.res=full.choice.breed2, excl.warnings=T,
+	nboots=1000, para=T)
+res<-round(boot.res$ci.estimates, 3)
+res
+```
