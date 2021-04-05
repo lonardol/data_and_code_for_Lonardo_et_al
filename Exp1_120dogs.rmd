@@ -133,7 +133,7 @@ res
 
 ```{r eval=FALSE, include=FALSE}
 # Model stability
-# One subject at a time excluded to assess the impact of outliers. 
+# One breed at a time excluded to assess the impact of outliers. 
 
 m.stab.b <- glmm.model.stab(model.res = full.choice.breed, use = c("breed"))
 m.stab.b$detailed$warnings

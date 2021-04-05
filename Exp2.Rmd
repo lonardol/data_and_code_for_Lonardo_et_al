@@ -24,51 +24,12 @@ source("functions/diagnostic_fcns.r")
 source("functions/glmm_stability.r")
 source("functions/boot_glmm.r")
 ```
-
-
+import data
 ```{r include=FALSE}
 ctrl_data<- read.csv("data/Dataset_S2.csv")%>%
-  mutate(condition=recode(condition, "False_Belief"="False Belief", "True_Belief"="True Belief", "True_Belief_Control"="True Belief Control"))
+  mutate(condition=recode(condition, "False_Belief"="False Belief", "True_Belief"="True Belief","True_Belief_Control"="True Belief Control"))
 ```
-
-
-
-```{r }
-#plotting the choices
-plot.data <- ctrl_data %>%
-  group_by(condition)%>%
-  summarise(mean.correct=mean(correct), sd.correct=sd(correct), sum.correct=sum(correct), median.correct=median(correct), n.correct=length(correct), se.correct=sd(correct)/sqrt(length(correct)))
-plot.data
-
-p.choice<-ggplot(
-  data=plot.data, aes(x=condition, y=mean.correct)) +
-  geom_bar(stat="identity", alpha=0.5)+
-  geom_errorbar(aes(ymin=mean.correct-se.correct, ymax=mean.correct+se.correct), width=.2) +
-  ylim(0,0.8)+
-  geom_signif(comparisons=list(c("False Belief", "True Belief"),c("False Belief","True Belief Control")), annotations="*",
-              y_position = 0.75, tip_length = 0.04, vjust=0.4) +
-  theme_classic()+
-  labs(x="Group",y="Proportion of bucket A choices")+
-  ggtitle("Choice (N=180)")
- p.choice
- 
- #saving the plot with ggsave
-ggsave(
-  "graphs/bucket_A_choices_180_dogs_ctrl.png",
-  plot = last_plot(),
-  device = NULL,
-  #path = "C:/Users/lonardol/Desktop/False Belief experiment/FB_2_follow_up/Graphs/Control",
-  scale = 0.8,
-  width = 7,
-  height = 6,
-  units = c("in", "cm", "mm"),
-  dpi = 320,
-  limitsize = TRUE
-)
- 
-```
-
-## Model with breed as random intercept
+## GLMM with breed as random intercept investigating the effect of condition on choice. Table S5
 
 ```{r}
 xx.fe.re=fe.re.tab(fe.model="correct ~ condition + age + sex + first_baited_box",
@@ -76,41 +37,51 @@ xx.fe.re=fe.re.tab(fe.model="correct ~ condition + age + sex + first_baited_box"
 xx.fe.re$summary
 ```
 
+#### fitting the model with "True Belief Control" as reference category for condition
 ``` {r error=TRUE}
 # centering variables for modeling
 
-model.data <- ctrl_data %>% 
-  mutate(z.age = as.numeric(scale(age, scale = T, center = T)),
-         sex.c = as.numeric(scale(as.numeric(sex), scale=F, center=T)),
-         condition.c = as.numeric(scale(as.numeric(condition), scale=F, center=T)),
-         first_baited_box.c = as.numeric(scale(as.numeric(first_baited_box), scale=F, center=T)))
+model.data2 <- ctrl_data %>% 
+  mutate(condition=fct_relevel(condition, ref="True_Belief_Control"),
+         z.age = as.numeric(scale(age, scale = T, center = T)),
+         sex.c = as.numeric(scale(as.numeric(as.factor(sex)), scale=F, center=T)),
+         condition.c = as.numeric(scale(as.numeric(as.factor(condition)), scale=F, center=T)),
+         first_baited_box.c = as.numeric(scale(as.numeric(as.factor(first_baited_box)), scale=F, center=T)))
 
-as.data.frame(model.data)
-#view(dfSummary(model.data))
+as.data.frame(model.data2)
+
 ## code to run the model
-full.choice.breed <- glmer(correct ~ condition + z.age + sex + first_baited_box+
+full.choice.breed2 <- glmer(correct ~ condition + z.age + sex + first_baited_box+
              (1+ sex.c + condition.c + first_baited_box.c + z.age|| breed), 
-             data = model.data, family = binomial, 
+             data = model.data2, family = binomial, 
              control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5))
 )
 ```
-####Model output
+####Model output with relevelled condition variable
   + Coefficients
 ```{r}
-round(summary(full.choice.breed)$coefficients, 3)
+round(summary(full.choice.breed2)$coefficients, 3)
 ```
 #Chisq. (LRT) and p
 ```{r}
-drop1.full=drop1(full.choice.breed, test="Chisq")
+drop1.full=drop1(full.choice.breed2, test="Chisq")
 round(drop1.full,3)
 ```
 ```{r}
-summary(full.choice.breed)$varcor
-summary(full.choice.breed)
+summary(full.choice.breed2)$varcor
+summary(full.choice.breed2)
 ```
 ```{r}
-#confidence intervaLs: fitting a new model just for the CI, in which all variables are centered, except for the one for which I want to predict CI
-#centering all variables except condition
+#confidence intervals
+boot.res=boot.glmm.pred(model.res=full.choice.breed2, excl.warnings=T,
+	nboots=1000, para=T)
+res<-round(boot.res$ci.estimates, 3)
+res
+```
+#Plotting the choices: Figure 2
+```{r}
+#confidence intervals: fitting a new model for the CI
+
 ci.data <- ctrl_data %>% 
   mutate(z.age = as.numeric(scale(age, scale = T, center = T)),
          sex.c = as.numeric(scale(as.numeric(sex), scale=F, center=T)),
@@ -172,10 +143,10 @@ p.choice<-ggplot(
  
  #saving the plot with ggsave
  ggsave(
-  "bucket_A_choices_180_dogs_fv_CI.pdf",
+  "Fig_2_bucket_A_choices_180_dogs_fv_CI.pdf",
   plot = last_plot(),
   device = NULL,
-  path = "~/R/data_code_Lonardo_et_al/graphs",
+  path = "~/GitHub/data_code_Lonardo_et_al/graphs",
   scale = 0.8,
   width = 7,
   height = 6,

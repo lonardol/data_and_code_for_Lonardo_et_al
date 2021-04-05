@@ -39,7 +39,7 @@ source("functions/boot_glmm.r")
 ```{r loading data, include = FALSE}
 fb_data <- read.csv(file="data/Dataset_S1.csv")
 ```
-# LMM (function lmer)with breed as a random intercept: effect of condition on latency (log transformed). Table S2
+# LMM (function lmer) with breed as a random intercept: effect of condition on latency (log transformed). Table S2
 
 
 #centering and scaling variables
