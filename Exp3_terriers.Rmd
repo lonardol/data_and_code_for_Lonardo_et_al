@@ -180,7 +180,7 @@ ggsave(
 )
 ```
 
-#unique plot for BC and Terrier choice
+#unique plot for BC and Terrier choice (Figure S6)
 ```{r}
 
 border_data <- read.csv(file="data/Dataset_S6_exp3_bc.csv")%>%
@@ -249,7 +249,7 @@ p.choiceb
  combined_plots<-plot_grid(p.choiceb, p.choicet, nrow=1)
 combined_plots
  #saving the plot 
-ggsave("Fig_3_exp3_terriers_and_bc_CI.pdf",
+ggsave("Fig_S6_exp3_terriers_and_bc_CI.pdf",
   plot = last_plot(),
   device = NULL,
   path = "~/R/data_code_Lonardo_et_al/graphs",
