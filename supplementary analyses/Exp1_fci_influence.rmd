@@ -68,7 +68,7 @@ model.data <- fb_data %>%
 as.data.frame(model.data)
 ```
 
-GLMM02  with breed and communicator's identity as random interceptS (Table S4)
+GLMM  with FCI group as random intercept
 
 ```{r eval=FALSE, echo=FALSE}
 xx.fe.re=fe.re.tab(fe.model="correct ~ condition + age + sex + first_baited_box",
@@ -78,7 +78,7 @@ xx.fe.re$summary
 ``` {r mixed modeling, error=TRUE}
 
 ## code to run the model
-full.choice.breed <- glmer(correct ~ condition + z.age + sex + first_baited_box+
+full.choice.fci <- glmer(correct ~ condition + z.age + sex + first_baited_box+
              (1+ sex.c + condition.c + first_baited_box.c + z.age| fci_group), 
              data = model.data, family = binomial, 
              control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5))
@@ -89,22 +89,22 @@ full.choice.breed <- glmer(correct ~ condition + z.age + sex + first_baited_box+
 ####Model output
   + Coefficients
 ```{r}
-round(summary(full.choice.breed)$coefficients, 3)
+round(summary(full.choice.fci)$coefficients, 3)
 ```
   + Individual predictors: likelihood ratio tests  
 Drop1: P values for the individual effects were based on likelihood ratio tests comparing the full with respective reduced models (Barr et al., 2013; R function drop1 with argument 'test' set to "Chisq"). 
 
 ```{r}
-drop1.full=drop1(full.choice.breed, test="Chisq")
+drop1.full=drop1(full.choice.fci, test="Chisq")
 round(drop1.full,3)
 ```
 ```{r}
-summary(full.choice.breed)$varcor
+summary(full.choice.fci)$varcor
 ```
 
 ``` {r mixed modeling, error=TRUE}
 #confidence intervals
-boot.res=boot.glmm.pred(model.res=full.choice.breed, excl.warnings=T,
+boot.res=boot.glmm.pred(model.res=full.choice.fci, excl.warnings=T,
 	nboots=1000, para=T)
 res<-round(boot.res$ci.estimates, 3) 
 res
@@ -116,13 +116,12 @@ res
 
 ```{r}
 
-library(sjmisc)
-plot_model(full.choice.breed,  type = "re", vline.color = "red")
+p<-plot_model(full.choice.fci,  type = "re", vline.color = "black", width = 0.3, line.size = 1, ci.lvl=0.95, terms = "condition")+theme_bw()+xlab("FCI groups")+ylab("Odds ratios")
 
-get_model_data(full.choice.breed, type = "re", show.values = T) 
+plot_model(full.choice.fci,  type = "re")
 
-plot_model(full.choice.breed, type = "est", show.values = TRUE)
+p
 
-sjp.lmer(full.choice.breed)
+ggsave(p, filename="glmm_plot_144dogs_fci_re.png", width=14, height=6, scale=0.8)
 
 ```
