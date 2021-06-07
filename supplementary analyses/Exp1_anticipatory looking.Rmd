@@ -97,3 +97,44 @@ round(m.stab$summary[,-1],3)
 
 m.stab.plot(m.stab$summary[, -1])
 ```
+#ant_look plot FCI groups
+```{r}
+setwd()
+fb_data <- read_csv("~/R/data_and_code_for_Lonardo_et_al/data/Dataset_S5_exp1_ant_look.csv")
+
+#change facet labels
+fci.labs <- c("FCI group 1","FCI group 2","FCI group 3","FCI group 5","FCI group 6","FCI group 7","FCI group 8","FCI group 10")
+
+plot.data.fci <- fb_data %>%
+  mutate(condition=recode(condition, "FalseBelief"="False Belief", "TrueBelief"="True Belief"))%>% #renaming of factor levels
+  group_by(condition, fci_group)%>%
+  summarise(mean.ant_look=mean(ant_look), sd.ant_look=sd(ant_look), sum.ant_look=sum(ant_look), median.ant_look=median(ant_look), n.ant_look=length(ant_look), se.ant_look=sd(ant_look)/sqrt(length(ant_look)))
+
+p.ant.look.fci<-ggplot(
+  data=plot.data.fci, aes(x=condition, y=mean.ant_look)) +
+  geom_bar(stat="identity", alpha=0.5)+
+  geom_errorbar(aes(ymin=mean.ant_look-se.ant_look, ymax=mean.ant_look+se.ant_look), width=.2) +
+  ylim(0,1)+
+  theme_classic()+
+  labs(x="Condition",y="Proportion dogs anticipating bucket B")+
+  facet_wrap(~fci_group, ncol=2)
+  
+p.ant.look.fci
+
+#save the plot 
+ggsave(
+  "FigureS7_ant_look_FCI_groups.pdf",
+  plot = last_plot(),
+  device = NULL,
+  path = "~/R/data_and_code_for_Lonardo_et_al/graphs",
+  scale = 1,
+  width = 4,
+  height = 7,
+  units = c("in", "cm", "mm"),
+  dpi = 320,
+  limitsize = TRUE
+)
+
+names(fci.labs) <- c(levels(fb_data$fci_group))
+```
+
