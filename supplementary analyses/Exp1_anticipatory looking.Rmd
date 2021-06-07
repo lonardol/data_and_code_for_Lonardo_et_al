@@ -99,8 +99,8 @@ m.stab.plot(m.stab$summary[, -1])
 ```
 #ant_look plot FCI groups
 ```{r}
-setwd()
 fb_data <- read_csv("~/R/data_and_code_for_Lonardo_et_al/data/Dataset_S5_exp1_ant_look.csv")
+view(fb_data)
 
 #change facet labels
 fci.labs <- c("FCI group 1","FCI group 2","FCI group 3","FCI group 5","FCI group 6","FCI group 7","FCI group 8","FCI group 10")
