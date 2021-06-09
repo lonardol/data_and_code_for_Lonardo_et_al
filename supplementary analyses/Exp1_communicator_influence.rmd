@@ -26,7 +26,7 @@ source("functions/boot_glmm.r")
 ```
 
 ```{r loading data, include = FALSE}
-fb_data <- read.csv(file="data/Dataset_S4_exp1_144dogs.csv")
+fb_data <- read.csv("../data/Dataset_S4_exp1_144dogs.csv")
 ```
 
 ### probability of first trial of 2nd familiarisation phase to be correct (following communicator's suggestion)
