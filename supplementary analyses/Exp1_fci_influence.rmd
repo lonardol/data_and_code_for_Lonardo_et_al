@@ -26,8 +26,8 @@ source("../functions/boot_glmm.r")
 ```
 
 ```{r loading data, include = FALSE}
-fb_data <- read.csv(file="../data/Dataset_S4_exp1_144dogs.csv")%>%
-  mutate(worker=ifelse(fci_group=="1"|fci_group=="7"|fci_group=="8", "cooperative", "independent"))
+fb_data <- read.csv(file="../data/Dataset_S4_exp1_144dogs.csv")
+  
 view(fb_data)
 
 ### probability of first trial of 2nd familiarisation phase to be correct (following communicator's suggestion)
